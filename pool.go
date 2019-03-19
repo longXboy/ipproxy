@@ -2,11 +2,11 @@ package ipproxy
 
 import (
 	"context"
-	"log"
 	"sync"
 	"time"
 
 	"github.com/longXboy/ipproxy/api"
+	"github.com/longXboy/ipproxy/log"
 	"github.com/longXboy/ipproxy/source"
 )
 
@@ -85,7 +85,7 @@ func (p *Pool) refresh() {
 		}(f)
 	}
 	wg.Wait()
-	log.Println("All getters finished.")
+	log.S.Infof("All getters finished.")
 }
 
 func (p *Pool) clean() {
@@ -115,8 +115,13 @@ func (p *Pool) clean() {
 }
 
 func (p *Pool) process() {
+	ticker := time.NewTicker(time.Second * 30)
+	defer ticker.Stop()
 	for {
 		select {
+		case <-ticker.C:
+			log.S.Infof("pools:%v", p.pools)
+			log.S.Infof("rented:%v", p.rented)
 		case ip := <-p.setter:
 			delete(p.rented, ip.Addr)
 			p.pools[ip.Addr] = ip
