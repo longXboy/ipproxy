@@ -25,7 +25,7 @@ func PLP() (result []api.IP) {
 		port := htmlquery.InnerText(tdNode[2])
 		Type := htmlquery.InnerText(tdNode[6])
 
-		IP := api.NewIP()
+		IP := api.NewIP("plp")
 		IP.Addr = ip + ":" + port
 
 		if Type == "yes" {
@@ -35,8 +35,6 @@ func PLP() (result []api.IP) {
 		} else if Type == "no" {
 			IP.Type1 = "http"
 		}
-
-		log.S.Infof("[PLP] ip.Addr = %s,ip.Type = %s,%s", IP.Addr, IP.Type1, IP.Type2)
 
 		result = append(result, IP)
 	}

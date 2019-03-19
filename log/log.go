@@ -7,9 +7,9 @@ import (
 var l *zap.Logger
 var S *zap.SugaredLogger
 
-func Init() {
+func init() {
 	var err error
-	l, err = zap.NewDevelopment()
+	l, err = zap.NewProduction()
 	if err != nil {
 		panic(err)
 	}

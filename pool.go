@@ -2,7 +2,6 @@ package ipproxy
 
 import (
 	"context"
-	"fmt"
 	"log"
 	"sync"
 	"time"
@@ -20,6 +19,7 @@ type Pool struct {
 
 	pools  map[string]api.IP
 	rented map[string]api.IP
+
 	c      context.Context
 	cancel context.CancelFunc
 }
@@ -74,10 +74,7 @@ func (p *Pool) refresh() {
 		wg.Add(1)
 		go func(f func() []api.IP) {
 			temp := f()
-			fmt.Println("temp:", temp)
-			//log.Println("[run] get into loop")
 			for _, v := range temp {
-				//log.Println("[run] len of ipChan %v",v)
 				select {
 				case p.filter <- v:
 				case <-p.c.Done():
@@ -96,7 +93,7 @@ func (p *Pool) clean() {
 		select {
 		case ip := <-p.filter:
 			speed, ok := CheckIP(ip)
-			if ok {
+			if ok && speed < 2000 {
 				ip.Speed = speed
 				select {
 				case p.valid <- ip:

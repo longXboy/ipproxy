@@ -2,8 +2,8 @@ package source
 
 import (
 	"github.com/Aiicy/htmlquery"
-	"github.com/longXboy/ipproxy/log"
 	"github.com/longXboy/ipproxy/api"
+	"github.com/longXboy/ipproxy/log"
 )
 
 // KDL get ip from kuaidaili.com
@@ -21,10 +21,10 @@ func KDL() (result []api.IP) {
 		Type := htmlquery.InnerText(tdNode[3])
 		speed := htmlquery.InnerText(tdNode[5])
 
-		IP := api.NewIP()
+		IP := api.NewIP("kdl")
 		IP.Addr = ip + ":" + port
 		if Type == "HTTPS" {
-			IP.Type1 = ""
+			IP.Type1 = "http"
 			IP.Type2 = "https"
 		} else if Type == "HTTP" {
 			IP.Type1 = "http"

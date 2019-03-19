@@ -32,10 +32,9 @@ func IP66() (result []api.IP) {
 	ips := ExprIP.FindAllString(bodyIPs, 100)
 
 	for index := 0; index < len(ips); index++ {
-		ip := api.NewIP()
+		ip := api.NewIP("66ip")
 		ip.Addr = strings.TrimSpace(ips[index])
 		ip.Type1 = "http"
-		log.S.Infof("[IP66] ip = %s, type = %s", ip.Addr, ip.Type1)
 		result = append(result, ip)
 	}
 

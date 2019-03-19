@@ -16,10 +16,10 @@ func CheckIP(ip api.IP) (speed int64, ok bool) {
 	var testIP string
 	if ip.Type2 == "https" {
 		testIP = "https://" + ip.Addr
-		pollURL = "https://httpbin.org/get"
+		pollURL = "https://api.nike.com/deliver/available_skus/v1/cb415cf7-a999-5118-a846-04194ed083c8"
 	} else {
 		testIP = "http://" + ip.Addr
-		pollURL = "http://httpbin.org/get"
+		pollURL = "https://httpbin.org/get"
 	}
 	//log.S.Info(testIP)
 	begin := time.Now()
