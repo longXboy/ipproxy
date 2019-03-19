@@ -93,7 +93,7 @@ func (p *Pool) clean() {
 		select {
 		case ip := <-p.filter:
 			speed, ok := CheckIP(ip)
-			if ok && speed < 2000 {
+			if ok && speed < 2500 {
 				ip.Speed = speed
 				select {
 				case p.valid <- ip:

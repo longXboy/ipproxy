@@ -19,7 +19,7 @@ func CheckIP(ip api.IP) (speed int64, ok bool) {
 		pollURL = "https://api.nike.com/deliver/available_skus/v1/cb415cf7-a999-5118-a846-04194ed083c8"
 	} else {
 		testIP = "http://" + ip.Addr
-		pollURL = "https://httpbin.org/get"
+		pollURL = "https://api.nike.com/deliver/available_skus/v1/cb415cf7-a999-5118-a846-04194ed083c8"
 	}
 	//log.S.Info(testIP)
 	begin := time.Now()
