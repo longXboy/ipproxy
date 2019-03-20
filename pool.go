@@ -10,6 +10,12 @@ import (
 	"github.com/longXboy/ipproxy/source"
 )
 
+type Config struct {
+	Sources       []func() []api.IP
+	HttpCheckUrl  string
+	HttpsCheckUrl string
+}
+
 type Pool struct {
 	filter  chan api.IP
 	valid   chan api.IP
@@ -20,22 +26,35 @@ type Pool struct {
 	pools  map[string]api.IP
 	rented map[string]api.IP
 
-	c      context.Context
-	cancel context.CancelFunc
+	c          context.Context
+	cancel     context.CancelFunc
+	sources    []func() []api.IP
+	httpCheck  string
+	httpsCheck string
 }
 
-func NewPool() (p *Pool) {
+func NewPool(conf *Config) (p *Pool) {
+	if conf.HttpCheckUrl == "" {
+		conf.HttpCheckUrl = "http://httpbin.org/get"
+	}
+	if conf.HttpsCheckUrl == "" {
+		conf.HttpsCheckUrl = "https://httpbin.org/get"
+	}
+
 	c, cancel := context.WithCancel(context.Background())
 	p = &Pool{
-		filter:  make(chan api.IP, 4096),
-		valid:   make(chan api.IP, 1024),
-		invalid: make(chan api.IP, 1024),
-		setter:  make(chan api.IP, 1024),
-		getter:  make(chan request, 1024),
-		c:       c,
-		cancel:  cancel,
-		pools:   make(map[string]api.IP),
-		rented:  make(map[string]api.IP),
+		filter:     make(chan api.IP, 4096),
+		valid:      make(chan api.IP, 1024),
+		invalid:    make(chan api.IP, 1024),
+		setter:     make(chan api.IP, 1024),
+		getter:     make(chan request, 1024),
+		c:          c,
+		cancel:     cancel,
+		pools:      make(map[string]api.IP),
+		rented:     make(map[string]api.IP),
+		sources:    conf.Sources,
+		httpCheck:  conf.HttpCheckUrl,
+		httpsCheck: conf.HttpsCheckUrl,
 	}
 	go p.produce()
 	for i := 0; i < 20; i++ {
@@ -70,6 +89,9 @@ func (p *Pool) refresh() {
 		source.PLP, //need to remove it
 		source.IP89,
 	}
+	if p.sources != nil {
+		funs = append(funs, p.sources...)
+	}
 	for _, f := range funs {
 		wg.Add(1)
 		go func(f func() []api.IP) {
@@ -92,7 +114,7 @@ func (p *Pool) clean() {
 	for {
 		select {
 		case ip := <-p.filter:
-			speed, ok := CheckIP(ip)
+			speed, ok := p.CheckIP(ip)
 			if ok && speed < 2500 {
 				ip.Speed = speed
 				select {

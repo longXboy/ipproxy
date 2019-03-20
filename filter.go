@@ -11,15 +11,15 @@ import (
 )
 
 // CheckIP is to check the ip work or not
-func CheckIP(ip api.IP) (speed int64, ok bool) {
+func (p *Pool) CheckIP(ip api.IP) (speed int64, ok bool) {
 	var pollURL string
 	var testIP string
 	if ip.Type2 == "https" {
 		testIP = "https://" + ip.Addr
-		pollURL = "https://api.nike.com/deliver/available_skus/v1/cb415cf7-a999-5118-a846-04194ed083c8"
+		pollURL = p.httpsCheck
 	} else {
 		testIP = "http://" + ip.Addr
-		pollURL = "https://api.nike.com/deliver/available_skus/v1/cb415cf7-a999-5118-a846-04194ed083c8"
+		pollURL = p.httpCheck
 	}
 	//log.S.Info(testIP)
 	begin := time.Now()
