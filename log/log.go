@@ -1,6 +1,8 @@
 package log
 
 import (
+	"os"
+
 	"go.uber.org/zap"
 )
 
@@ -9,7 +11,11 @@ var S *zap.SugaredLogger
 
 func init() {
 	var err error
-	l, err = zap.NewProduction()
+	if os.Getenv("DEPLOY_ENV") == "dev" || os.Getenv("deploy_env") == "dev" {
+		l, err = zap.NewDevelopment()
+	} else {
+		l, err = zap.NewProduction()
+	}
 	if err != nil {
 		panic(err)
 	}

@@ -3,6 +3,7 @@ package ipproxy
 import (
 	"context"
 	"sync"
+	"sync/atomic"
 	"time"
 
 	"github.com/longXboy/ipproxy/api"
@@ -11,26 +12,40 @@ import (
 )
 
 type Config struct {
+	//if the real speed is bigger than Config.Speed the ip will be dropped
+	Speed         int64
 	Sources       []func() []api.IP
 	HttpCheckUrl  string
 	HttpsCheckUrl string
+	FilterWorker  int32
+}
+
+type Stat struct {
+	Rented    int32
+	Valid     int32
+	Forbidden int32
+	Invalid   int32
 }
 
 type Pool struct {
-	filter  chan api.IP
-	valid   chan api.IP
-	invalid chan api.IP
-	setter  chan api.IP
-	getter  chan request
-
-	pools  map[string]api.IP
-	rented map[string]api.IP
-
 	c          context.Context
 	cancel     context.CancelFunc
-	sources    []func() []api.IP
 	httpCheck  string
 	httpsCheck string
+	speed      int64
+	sources    []func() []api.IP
+
+	filter chan api.IP
+	valid  chan api.IP
+	drop   chan api.IP
+	setter chan api.IP
+	getter chan request
+
+	pools     map[string]api.IP
+	rented    map[string]api.IP
+	invalid   map[string]api.IP
+	forbidden map[string]api.IP
+	stat      *Stat
 }
 
 func NewPool(conf *Config) (p *Pool) {
@@ -40,28 +55,51 @@ func NewPool(conf *Config) (p *Pool) {
 	if conf.HttpsCheckUrl == "" {
 		conf.HttpsCheckUrl = "https://httpbin.org/get"
 	}
+	if conf.FilterWorker == 0 {
+		conf.FilterWorker = 20
+	}
 
 	c, cancel := context.WithCancel(context.Background())
 	p = &Pool{
 		filter:     make(chan api.IP, 4096),
 		valid:      make(chan api.IP, 1024),
-		invalid:    make(chan api.IP, 1024),
+		drop:       make(chan api.IP, 1024),
 		setter:     make(chan api.IP, 1024),
 		getter:     make(chan request, 1024),
 		c:          c,
 		cancel:     cancel,
 		pools:      make(map[string]api.IP),
 		rented:     make(map[string]api.IP),
+		invalid:    make(map[string]api.IP),
+		forbidden:  make(map[string]api.IP),
 		sources:    conf.Sources,
 		httpCheck:  conf.HttpCheckUrl,
 		httpsCheck: conf.HttpsCheckUrl,
+		speed:      conf.Speed,
+		stat:       &Stat{},
 	}
 	go p.produce()
-	for i := 0; i < 20; i++ {
+	for i := 0; i < int(conf.FilterWorker); i++ {
 		go p.clean()
 	}
 	go p.process()
 	return
+}
+
+func (p *Pool) Reload() {
+	if len(p.filter) < 128 {
+		p.refresh()
+	} else {
+		log.S.Warnf("filter is more than 128,don't reload")
+	}
+}
+func (p *Pool) Stats() Stat {
+	return Stat{
+		Invalid:   atomic.LoadInt32(&p.stat.Invalid),
+		Valid:     atomic.LoadInt32(&p.stat.Valid),
+		Forbidden: atomic.LoadInt32(&p.stat.Forbidden),
+		Rented:    atomic.LoadInt32(&p.stat.Rented),
+	}
 }
 
 func (p *Pool) produce() {
@@ -83,10 +121,10 @@ func (p *Pool) produce() {
 func (p *Pool) refresh() {
 	var wg sync.WaitGroup
 	funs := []func() []api.IP{
-		source.Feiyi,
-		source.IP66, //need to remove it
+		//source.Feiyi,
+		//source.IP66, //need to remove it
 		source.KDL,
-		source.PLP, //need to remove it
+		//.PLP, //need to remove it
 		source.IP89,
 	}
 	if p.sources != nil {
@@ -114,9 +152,8 @@ func (p *Pool) clean() {
 	for {
 		select {
 		case ip := <-p.filter:
-			speed, ok := p.CheckIP(ip)
-			if ok && speed < 2500 {
-				ip.Speed = speed
+			ok := p.CheckIP(&ip)
+			if ok && ip.Speed < p.speed {
 				select {
 				case p.valid <- ip:
 				case <-p.c.Done():
@@ -124,7 +161,7 @@ func (p *Pool) clean() {
 				}
 			} else {
 				select {
-				case p.invalid <- ip:
+				case p.drop <- ip:
 				case <-p.c.Done():
 					return
 				}
@@ -137,22 +174,36 @@ func (p *Pool) clean() {
 }
 
 func (p *Pool) process() {
-	ticker := time.NewTicker(time.Second * 30)
+	ticker := time.NewTicker(time.Second * 15)
 	defer ticker.Stop()
 	for {
 		select {
 		case <-ticker.C:
-			log.S.Infof("pools:%v", p.pools)
-			log.S.Infof("rented:%v", p.rented)
+			atomic.StoreInt32(&p.stat.Valid, int32(len(p.pools)))
+			atomic.StoreInt32(&p.stat.Rented, int32(len(p.rented)))
+			atomic.StoreInt32(&p.stat.Invalid, int32(len(p.invalid)))
+			atomic.StoreInt32(&p.stat.Forbidden, int32(len(p.forbidden)))
+			log.S.Debugf("pools:%v", p.pools)
+			log.S.Debugf("rented:%v", p.rented)
 		case ip := <-p.setter:
 			delete(p.rented, ip.Addr)
-			p.pools[ip.Addr] = ip
+			select {
+			case p.filter <- ip:
+			case <-p.c.Done():
+				return
+			}
 		case ip := <-p.valid:
 			if _, ok := p.rented[ip.Addr]; !ok {
 				p.pools[ip.Addr] = ip
 			}
-		case ip := <-p.invalid:
+		case ip := <-p.drop:
 			delete(p.pools, ip.Addr)
+			if ip.Forbidden {
+				p.forbidden[ip.Addr] = ip
+				log.S.Warnf("ip(%v) is forbidden", ip)
+			} else {
+				p.invalid[ip.Addr] = ip
+			}
 		case r := <-p.getter:
 			var n int
 			var ips []api.IP

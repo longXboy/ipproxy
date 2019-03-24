@@ -26,30 +26,6 @@
   version = "v0.5.0"
 
 [[projects]]
-  digest = "1:7aefb397a53fc437c90f0fdb3e1419c751c5a3a165ced52325d5d797edf1aca6"
-  name = "github.com/moul/http2curl"
-  packages = ["."]
-  pruneopts = "UT"
-  revision = "9ac6cf4d929b2fa8fd2d2e6dec5bb0feb4f4911d"
-  version = "v1.0.0"
-
-[[projects]]
-  digest = "1:d776f3e95774a8719f2e57fabbbb33103035fe072dcf6f1864f33abd17b753e5"
-  name = "github.com/parnurzeal/gorequest"
-  packages = ["."]
-  pruneopts = "UT"
-  revision = "a578a48e8d6ca8b01a3b18314c43c6716bb5f5a3"
-  version = "v0.2.15"
-
-[[projects]]
-  digest = "1:cf31692c14422fa27c83a05292eb5cbe0fb2775972e8f1f8446a71549bd8980b"
-  name = "github.com/pkg/errors"
-  packages = ["."]
-  pruneopts = "UT"
-  revision = "ba968bfe8b2f7e042a574c888954fccecfa385b4"
-  version = "v0.8.1"
-
-[[projects]]
   digest = "1:777e729b475d3895c7229552aa10076f0d177daf37c0a72258006d046d329960"
   name = "go.uber.org/atomic"
   packages = ["."]
@@ -82,24 +58,20 @@
 
 [[projects]]
   branch = "master"
-  digest = "1:2efc68274e36af3668c142f0c35ed1dc0966939b584399f345b102f78fdc2994"
+  digest = "1:03a8ff54c1a62710fe21a08ad9ccd554ac90232c4fd34c2731f65dd47e1f2077"
   name = "golang.org/x/net"
   packages = [
     "html",
     "html/atom",
     "html/charset",
-    "idna",
-    "publicsuffix",
   ]
   pruneopts = "UT"
   revision = "9f648a60d9775ef5c977e7669d1673a7a67bef33"
 
 [[projects]]
-  digest = "1:436b24586f8fee329e0dd65fd67c817681420cda1d7f934345c13fe78c212a73"
+  digest = "1:aa4d6967a3237f8367b6bf91503964a77183ecf696f1273e8ad3551bb4412b5f"
   name = "golang.org/x/text"
   packages = [
-    "collate",
-    "collate/build",
     "encoding",
     "encoding/charmap",
     "encoding/htmlindex",
@@ -110,20 +82,13 @@
     "encoding/simplifiedchinese",
     "encoding/traditionalchinese",
     "encoding/unicode",
-    "internal/colltab",
     "internal/gen",
     "internal/tag",
-    "internal/triegen",
-    "internal/ucd",
     "internal/utf8internal",
     "language",
     "runes",
-    "secure/bidirule",
     "transform",
-    "unicode/bidi",
     "unicode/cldr",
-    "unicode/norm",
-    "unicode/rangetable",
   ]
   pruneopts = "UT"
   revision = "f21a4dfb5e38f5895301dc265a8def02365cc3d0"
@@ -135,7 +100,6 @@
   input-imports = [
     "github.com/Aiicy/htmlquery",
     "github.com/bitly/go-simplejson",
-    "github.com/parnurzeal/gorequest",
     "go.uber.org/zap",
   ]
   solver-name = "gps-cdcl"

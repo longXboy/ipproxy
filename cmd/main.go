@@ -13,7 +13,7 @@ import (
 func main() {
 
 	defer log.Close()
-	ip := ipproxy.NewPool()
+	ip := ipproxy.NewPool(&ipproxy.Config{})
 	time.Sleep(time.Second * 50)
 	ips := ip.Get(context.Background(), 100)
 	fmt.Println("ips:", ips)

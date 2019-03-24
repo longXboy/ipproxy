@@ -1,20 +1,24 @@
 package ipproxy
 
 import (
+	"net/http"
+	"net/url"
 	"time"
 
 	"github.com/longXboy/ipproxy/api"
 
 	sj "github.com/bitly/go-simplejson"
 	"github.com/longXboy/ipproxy/log"
-	"github.com/parnurzeal/gorequest"
 )
 
 // CheckIP is to check the ip work or not
-func (p *Pool) CheckIP(ip api.IP) (speed int64, ok bool) {
+func (p *Pool) CheckIP(ip *api.IP) (ok bool) {
 	var pollURL string
 	var testIP string
-	if ip.Type2 == "https" {
+	if ip.Url != "" {
+		testIP = ip.Url
+		pollURL = p.httpsCheck
+	} else if ip.Type2 == "https" {
 		testIP = "https://" + ip.Addr
 		pollURL = p.httpsCheck
 	} else {
@@ -23,9 +27,19 @@ func (p *Pool) CheckIP(ip api.IP) (speed int64, ok bool) {
 	}
 	//log.S.Info(testIP)
 	begin := time.Now()
-	resp, _, errs := gorequest.New().Proxy(testIP).Get(pollURL).End()
-	if errs != nil {
-		//log.S.Warnf("[CheckIP] testIP = %s, pollURL = %s: Error = %v", testIP, pollURL, errs)
+	cli := http.Client{
+		Timeout: time.Second * 2,
+	}
+	proxyUrl, err := url.Parse(testIP)
+	if err != nil {
+		log.S.Warnf("url.Parse testIP = %s: Error = %v", testIP, err)
+	}
+	cli.Transport = &http.Transport{Proxy: http.ProxyURL(proxyUrl)}
+	resp, err := cli.Get(pollURL)
+	if err != nil {
+		/*	if ip.Source == "local" {
+			log.S.Warnf("CheckIP testIP(%s) pollUrl(%s) failed;Error=%v", testIP, pollURL, err)
+		}*/
 		return
 	}
 
@@ -38,9 +52,11 @@ func (p *Pool) CheckIP(ip api.IP) (speed int64, ok bool) {
 			return
 		}
 		//harrybi 计算该代理的速度，单位毫秒
-		speed = time.Now().Sub(begin).Nanoseconds() / int64(time.Millisecond)
+		ip.Speed = time.Now().Sub(begin).Nanoseconds() / int64(time.Millisecond)
 		ok = true
 		return
+	} else if resp.StatusCode == http.StatusForbidden {
+		ip.Forbidden = true
 	}
 	return
 }
