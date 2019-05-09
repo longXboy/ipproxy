@@ -1,21 +1,36 @@
 package api
 
+import (
+	"net/http"
+	"time"
+)
+
+const (
+	IPNormal    int = 0
+	IPForbidden int = 1
+	IPConnErr   int = 2
+	IPOtherErr  int = 3
+)
+
 // IP struct
 type IP struct {
-	Addr      string
-	Type1     string
-	Type2     string `json:",omitempty"`
-	Speed     int64  `json:",omitempty"`
-	Source    string
-	Url       string
-	Forbidden bool `json:",omitempty"`
+	Addr            string
+	Type1           string
+	Type2           string        `json:",omitempty"`
+	Speed           time.Duration `json:",omitempty"`
+	Source          string
+	Url             string
+	Status          int
+	Retry           int64
+	LastForbiddenTs int64
+	Client          *http.Client
 }
 
 // NewIP .
 func NewIP(source string) IP {
-	//init the speed to 100 Sec
+	//init the speed to 10 Sec
 	return IP{
-		Speed:  100,
+		Speed:  time.Second * 10,
 		Source: source,
 	}
 }
