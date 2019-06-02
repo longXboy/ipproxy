@@ -4,7 +4,6 @@ import (
 	"container/list"
 	"context"
 	"sync"
-	"sync/atomic"
 	"time"
 
 	"github.com/longXboy/ipproxy/api"
@@ -25,10 +24,20 @@ type Config struct {
 type Stat struct {
 	All       int32
 	Rented    int32
-	Valid     int32
+	Available int32
 	Forbidden int32
 	Bad       int32
 	Filter    int32
+}
+
+type Option struct {
+	reserved int
+}
+
+func ReserveOpt(count int) func(*Option) {
+	return func(o *Option) {
+		o.reserved = count
+	}
 }
 
 type Pool struct {
@@ -48,7 +57,6 @@ type Pool struct {
 	rented    map[string]*api.IP
 	bad       *list.List
 	forbidden *list.List
-	stat      *Stat
 }
 
 func NewPool(conf *Config) (p *Pool) {
@@ -81,7 +89,6 @@ func NewPool(conf *Config) (p *Pool) {
 		rented:    make(map[string]*api.IP),
 		bad:       list.New(),
 		forbidden: list.New(),
-		stat:      &Stat{},
 	}
 	go p.produce()
 	for i := 0; i < int(conf.FilterWorker); i++ {
@@ -93,12 +100,12 @@ func NewPool(conf *Config) (p *Pool) {
 
 func (p *Pool) Stats() Stat {
 	return Stat{
-		All:       atomic.LoadInt32(&p.stat.All),
-		Bad:       atomic.LoadInt32(&p.stat.Bad),
-		Valid:     atomic.LoadInt32(&p.stat.Valid),
-		Forbidden: atomic.LoadInt32(&p.stat.Forbidden),
-		Rented:    atomic.LoadInt32(&p.stat.Rented),
-		Filter:    atomic.LoadInt32(&p.stat.Filter),
+		All:       int32(len(p.all)),
+		Bad:       int32(p.bad.Len()),
+		Available: int32(p.pools.Len()),
+		Forbidden: int32(p.forbidden.Len()),
+		Rented:    int32(len(p.rented)),
+		Filter:    int32(len(p.filter)),
 	}
 }
 
@@ -190,13 +197,6 @@ func (p *Pool) process() {
 				now = next
 			}
 		case <-ticker.C:
-			atomic.StoreInt32(&p.stat.All, int32(len(p.all)))
-			atomic.StoreInt32(&p.stat.Valid, int32(p.pools.Len()))
-			atomic.StoreInt32(&p.stat.Rented, int32(len(p.rented)))
-			atomic.StoreInt32(&p.stat.Bad, int32(p.bad.Len()))
-			atomic.StoreInt32(&p.stat.Forbidden, int32(p.forbidden.Len()))
-			atomic.StoreInt32(&p.stat.Filter, int32(len(p.filter)))
-			log.S.Debugf("all:%d pools:%d forbidden:%d bad:%d rented:%d", len(p.all), p.pools.Len(), p.forbidden.Len(), p.bad.Len(), len(p.rented))
 			for i := 0; i < 20; i++ {
 				front := p.bad.Front()
 				if front == nil {
@@ -222,6 +222,9 @@ func (p *Pool) process() {
 				p.bad.PushBack(ip)
 			}
 		case r := <-p.getter:
+			if r.opt.reserved != 0 && p.pools.Len() < r.opt.reserved {
+				continue
+			}
 			front := p.pools.Front()
 			if front != nil {
 				p.pools.Remove(front)
@@ -252,11 +255,16 @@ func (p *Pool) process() {
 type request struct {
 	ip   *api.IP
 	done chan struct{}
+	opt  *Option
 }
 
-func (p *Pool) Get() (ip *api.IP) {
+func (p *Pool) Get(optFuncs ...func(o *Option)) (ip *api.IP) {
 	r := &request{
 		done: make(chan struct{}),
+		opt:  new(Option),
+	}
+	for _, f := range optFuncs {
+		f(r.opt)
 	}
 	p.getter <- r
 	select {
