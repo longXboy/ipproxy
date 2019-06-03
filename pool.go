@@ -111,7 +111,7 @@ func (p *Pool) Stats() Stat {
 
 func (p *Pool) produce() {
 	p.Refresh()
-	ticker := time.NewTicker(time.Minute * 5)
+	ticker := time.NewTicker(time.Minute * 15)
 	defer ticker.Stop()
 	for {
 		select {
@@ -258,12 +258,12 @@ type request struct {
 	opt  *Option
 }
 
-func (p *Pool) Get(optFuncs ...func(o *Option)) (ip *api.IP) {
+func (p *Pool) Get(opts ...func(o *Option)) (ip *api.IP) {
 	r := &request{
 		done: make(chan struct{}),
 		opt:  new(Option),
 	}
-	for _, f := range optFuncs {
+	for _, f := range opts {
 		f(r.opt)
 	}
 	p.getter <- r
