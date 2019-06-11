@@ -222,15 +222,14 @@ func (p *Pool) process() {
 				p.bad.PushBack(ip)
 			}
 		case r := <-p.getter:
-			if r.opt.reserved != 0 && p.pools.Len() < r.opt.reserved {
-				continue
-			}
-			front := p.pools.Front()
-			if front != nil {
-				p.pools.Remove(front)
-				ip := front.Value.(*api.IP)
-				p.rented[ip.Addr] = ip
-				r.ip = ip
+			if r.opt.reserved == 0 || p.pools.Len() > r.opt.reserved {
+				front := p.pools.Front()
+				if front != nil {
+					p.pools.Remove(front)
+					ip := front.Value.(*api.IP)
+					p.rented[ip.Addr] = ip
+					r.ip = ip
+				}
 			}
 			select {
 			case r.done <- struct{}{}:
