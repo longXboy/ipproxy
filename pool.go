@@ -174,7 +174,7 @@ func (p *Pool) clean() {
 func (p *Pool) process() {
 	checkInter := time.NewTicker(p.conf.CheckInterval)
 	defer checkInter.Stop()
-	ticker := time.NewTicker(time.Second * 15)
+	ticker := time.NewTicker(time.Second * 60)
 	defer ticker.Stop()
 	for {
 		select {
