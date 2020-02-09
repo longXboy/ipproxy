@@ -24,6 +24,7 @@ type IP struct {
 	Retry           int64
 	LastForbiddenTs int64
 	Client          *http.Client
+	Uses            int64
 }
 
 // NewIP .
